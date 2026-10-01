@@ -19,6 +19,8 @@ jobs:
         shell: "/bin/bash -eo pipefail"
         no_qemu: 'yes'
         image_additional_mb: 4096
+        copy_artifact_path: |
+          artefacts.tar.xz
         commands: |
             echo "==============================================================="
 
@@ -157,7 +159,7 @@ jobs:
 
             echo "==============================================================="
 
-            cd /ws
+            pushd /ws
             colcon build \
               --executor sequential \
               --event-handlers \
@@ -169,5 +171,19 @@ jobs:
                 -G Ninja \
                 -DBUILD_TESTING=OFF \
                 -DCMAKE_BUILD_TYPE=RelWithDebInfo
+            popd
 
             echo "==============================================================="
+
+            tar -cf - /ws/install /ws/log /ros_jazzy_rclcpp_pkgs.repos | xz -T0 -v -1 > artefacts.tar.xz
+
+            echo "==============================================================="
+
+    - name: Upload artefacts
+      uses: actions/upload-artifact@v7
+      with:
+        name: ros-jazzy-armhf-test.img.xz
+        path: artefacts.tar.xz
+        if-no-files-found: error
+        archive: false
+        retention-days: 1
