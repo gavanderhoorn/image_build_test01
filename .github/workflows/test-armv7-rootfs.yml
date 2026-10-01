@@ -135,15 +135,19 @@ jobs:
               -t build_export \
               -t buildtool_export \
               -t buildtool \
+              -t exec \
               --skip-keys "\
+                cppcheck \
                 fastcdr \
                 gmock_vendor \
+                google_benchmark_vendor \
                 gtest_vendor \
                 performance_test_fixture \
                 rmw_connextdds \
                 rmw_cyclonedds_cpp \
                 rti-connext-dds-6.0.1 \
                 tracetools \
+                uncrustify_vendor \
                 urdfdom_headers \
               "
 
