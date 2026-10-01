@@ -111,7 +111,6 @@ jobs:
                 rti_connext_dds_cmake_module \
                 test_interface_files \
                 test_msgs \
-                tracetools \
                 uncrustify_vendor \
               -- \
               rclcpp > /ros_jazzy_rclcpp_pkgs.repos
@@ -146,7 +145,6 @@ jobs:
                 rmw_connextdds \
                 rmw_cyclonedds_cpp \
                 rti-connext-dds-6.0.1 \
-                tracetools \
                 uncrustify_vendor \
                 urdfdom_headers \
               "
