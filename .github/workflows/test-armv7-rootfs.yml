@@ -1,0 +1,171 @@
+name: Test ARMv7 rootfs
+on:
+  push:
+    branches:
+      - 'main'
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  aarch64:
+    runs-on: ubuntu-24.04-arm
+    steps:
+    - uses: actions/checkout@v6
+    - uses: gavanderhoorn/arm-runner-action@no_qemu_on_aarch64
+      with:
+        base_image: "https://downloads.raspberrypi.org/raspios_lite_armhf/images/raspios_lite_armhf-2025-05-13/2025-05-13-raspios-bookworm-armhf-lite.img.xz"
+        cpu: cortex-a7
+        cpu_info: cpuinfo/raspberrypi_3b
+        shell: "/bin/bash -eo pipefail"
+        no_qemu: 'yes'
+        image_additional_mb: 4096
+        commands: |
+            echo "==============================================================="
+
+            echo "Running on: $(uname -a)"
+            cat /etc/os-release
+            file /bin/bash
+            apt-get update -qq
+            apt-get install -q -y --no-install-recommends gcc
+            gcc --version
+            gcc -dumpmachine
+            gcc -v
+            gcc -Q --help=target | grep march
+
+            echo "==============================================================="
+
+            export DEBIAN_FRONTEND=noninteractive
+
+            echo "==============================================================="
+
+            apt-get update -qq
+            apt-get upgrade -y -o Dpkg::Options::="--force-confold"
+
+            echo "==============================================================="
+
+            locale
+            apt-get update -qq && apt-get install -q -y locales
+            sed -i 's|# en_US.UTF-8 UTF-8|en_US.UTF-8 UTF-8|g' /etc/locale.gen
+            locale-gen en_US en_US.UTF-8
+            update-locale LC_ALL=en_US.UTF-8 LANG=en_US.UTF-8
+            export LANG=en_US.UTF-8
+            locale
+
+            echo "==============================================================="
+
+            apt-get update -qq && apt-get install -q -y curl
+            export ROS_APT_SOURCE_VERSION=$(curl -s https://api.github.com/repos/ros-infrastructure/ros-apt-source/releases/latest | grep -F "tag_name" | awk -F'"' '{print $4}')
+            curl -L -o /tmp/ros2-apt-source.deb "https://github.com/ros-infrastructure/ros-apt-source/releases/download/${ROS_APT_SOURCE_VERSION}/ros2-apt-source_${ROS_APT_SOURCE_VERSION}.$(. /etc/os-release && echo ${UBUNTU_CODENAME:-${VERSION_CODENAME}})_all.deb"
+            dpkg -i /tmp/ros2-apt-source.deb
+
+            echo "==============================================================="
+
+            apt-get update -qq && apt install -q -y \
+              python3-flake8-blind-except \
+              python3-flake8-class-newline \
+              python3-flake8-deprecated \
+              python3-mypy \
+              python3-pip \
+              python3-pytest \
+              python3-pytest-cov \
+              python3-pytest-mock \
+              python3-pytest-repeat \
+              python3-pytest-rerunfailures \
+              python3-pytest-runner \
+              python3-pytest-timeout \
+              python3-rosinstall-generator \
+              ros-dev-tools
+
+            apt-get install -q -y --no-install-recommends \
+              ninja-build
+
+            echo "==============================================================="
+
+            rosdep init
+            rosdep update --rosdistro=jazzy --os="debian:bookworm"
+
+            echo "==============================================================="
+
+            rosinstall_generator \
+              --deps \
+              --format=repos \
+              --rosdistro=jazzy \
+              --tar \
+              --exclude \
+                cyclonedds \
+                gmock_vendor \
+                google_benchmark_vendor \
+                gtest_vendor \
+                iceoryx_binding_c \
+                iceoryx_hoofs \
+                iceoryx_posh \
+                launch_testing \
+                launch_testing_ament_cmake \
+                launch_testing_ros \
+                osrf_testing_tools_cpp \
+                performance_test_fixture \
+                rmw_connextdds \
+                rmw_connextdds_common \
+                rmw_cyclonedds_cpp \
+                ros2_control_test_assets \
+                rti_connext_dds_cmake_module \
+                test_interface_files \
+                test_msgs \
+                tracetools \
+                uncrustify_vendor \
+              -- \
+              rclcpp > /ros_jazzy_rclcpp_pkgs.repos
+
+            echo "==============================================================="
+
+            mkdir -p /ws/src
+            vcs import --input /ros_jazzy_rclcpp_pkgs.repos /ws/src
+
+            echo "==============================================================="
+
+            rosdep install \
+              --from-paths /ws/src \
+              --ignore-src \
+              --rosdistro jazzy \
+              --os "debian:bookworm" \
+              -y \
+              --as-root="apt:false" \
+              --as-root="pip:false" \
+              -t build \
+              -t build_export \
+              -t buildtool_export \
+              -t buildtool \
+              --skip-keys "\
+                fastcdr \
+                gmock_vendor \
+                gtest_vendor \
+                performance_test_fixture \
+                rmw_connextdds \
+                rmw_cyclonedds_cpp \
+                rti-connext-dds-6.0.1 \
+                tracetools \
+                urdfdom_headers \
+              "
+
+            echo "==============================================================="
+
+            sed -i \
+              's|VCS_URL https://github.com/ros2/Mimick.git|VCS_URL https://github.com/ros2/Mimick.git CMAKE_ARGS "-DMIMICK_TARGET_ARCH=armv7l"|g' \
+              /ws/src/mimick_vendor/mimick_vendor-release-release-jazzy-mimick_vendor-0.6.3-1/CMakeLists.txt
+
+            echo "==============================================================="
+
+            cd /ws
+            colcon build \
+              --executor sequential \
+              --event-handlers \
+                console_direct+ \
+                desktop_notification- \
+                status- \
+              --merge-install \
+              --cmake-args \
+                -G Ninja \
+                -DBUILD_TESTING=OFF \
+                -DCMAKE_BUILD_TYPE=RelWithDebInfo
+
+            echo "==============================================================="
