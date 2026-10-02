@@ -8,6 +8,7 @@ jobs:
     steps:
     - uses: actions/checkout@v6
     - uses: gavanderhoorn/arm-runner-action@no_qemu_on_aarch64
+      id: build_image
       with:
         base_image: "https://github.com/ArendJan/mirte_base_images/releases/download/25.5.1/Armbian-unofficial_25.5.1_Orangepizero_jammy_edge_6.12.9.img.xz"
         rootpartition: 1
@@ -177,11 +178,26 @@ jobs:
 
             echo "==============================================================="
 
+    - name: Compress the release image
+      run: |
+        mv ${{ steps.build_image.outputs.image }} \
+          Armbian-unofficial_25.5.1_Orangepizero_jammy_edge_6.12.9-jazzy.img
+        xz -1 -T0 -v Armbian-unofficial_25.5.1_Orangepizero_jammy_edge_6.12.9-jazzy.img
+
     - name: Upload artefacts
       uses: actions/upload-artifact@v7
       with:
         name: ros-jazzy-armhf-test.img.xz
         path: artefacts.tar.xz
+        if-no-files-found: error
+        archive: false
+        retention-days: 4
+
+    - name: Upload image
+      uses: actions/upload-artifact@v7
+      with:
+        name: Armbian-unofficial_25.5.1_Orangepizero_jammy_edge_6.12.9-jazzy.img.xz
+        path: Armbian-unofficial_25.5.1_Orangepizero_jammy_edge_6.12.9-jazzy.img.xz
         if-no-files-found: error
         archive: false
         retention-days: 4
