@@ -10,6 +10,8 @@ jobs:
     - uses: gavanderhoorn/arm-runner-action@no_qemu_on_aarch64
       with:
         base_image: "https://github.com/ArendJan/mirte_base_images/releases/download/25.5.1/Armbian-unofficial_25.5.1_Orangepizero_jammy_edge_6.12.9.img.xz"
+        rootpartition: 1
+        bootpartition: ''
         cpu: cortex-a7
         cpu_info: cpuinfo/raspberrypi_3b
         shell: "/bin/bash -eo pipefail"
